@@ -1,18 +1,41 @@
-//variables
-let intervals = {}; // objeto para guardar intervalos por tipo
-let startTimes = {};
-let activeButtons = {};
+// app.js - mínimo JS
+const colorPicker = document.getElementById('colorPicker');
+const valR = document.getElementById('valR');
+const valG = document.getElementById('valG');
+const valB = document.getElementById('valB');
+const status = document.getElementById('status');
 
-const frenteBtn = document.getElementById('frente');
-const atrasBtn = document.getElementById('atras');
-const derechaBtn = document.getElementById('derecha');
-const izquierdaBtn = document.getElementById('izquierda');
+// Configuración
+const ENDPOINT = '/RGB'; 
+const PWM_MAX = 1023;
 
-function enviarValorP(url, valor){
+// Debounce simple para no spamear el servidor
+let sendTimeout = null;
+function debounceSend(r,g,b,delay=150){
+  if(sendTimeout) clearTimeout(sendTimeout);
+  sendTimeout = setTimeout(()=> sendRGB(r,g,b), delay);
+}
+
+// Convierte hex (#RRGGBB) a 0-1023
+function hexTo1023(hex){
+  if(hex.startsWith('#')) hex = hex.slice(1);
+  const r = parseInt(hex.slice(0,2),16);
+  const g = parseInt(hex.slice(2,4),16);
+  const b = parseInt(hex.slice(4,6),16);
+  const scale = PWM_MAX / 255;
+  return {
+    r: Math.round(r * scale),
+    g: Math.round(g * scale),
+    b: Math.round(b * scale)
+  };
+}
+
+//envio generico
+function enviarValorP(url, lampara, estado){
 	fetch(url, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-		body: 'value=' + valor
+		body: 'lampara=' + lampara + '&estado=' + estado
 	})
 	.then(response => response.text())
 	.then(data => {
@@ -25,94 +48,76 @@ function enviarValorP(url, valor){
 	});
 }
 
-function obtenerValorG(url, destinoId){
-	fetch(url, {method: 'GET'})
-	.then(response => response.json())
-	.then(data => {
-		document.getElementById(destinoId).textContent = data.bateria+'%';
-	})
-	.catch(err => {
-		document.getElementById(destinoId).textContent = 'Error al obtener: ' + err;
-	});
-}
+// Envío usando application/x-www-form-urlencoded con r,g,b
+function sendRGB(r,g,b){
+  // Validación básica
+  if([r,g,b].some(v => isNaN(v) || v < 0 || v > PWM_MAX)){
+    status.textContent = 'Valores fuera de rango';
+    return;
+  }
 
-// función genérica para iniciar movimiento
-function startMove(url, tipo){
-  startTimes[tipo] = Date.now();
-  activeButtons[tipo] = true;   // <-- nuevo
+  const body = 'r=' + encodeURIComponent(r) + '&g=' + encodeURIComponent(g) + '&b=' + encodeURIComponent(b);
 
-  if (intervals[tipo]) return;
-
-  intervals[tipo] = setInterval(() => {
-    // si frente y derecha están activos al mismo tiempo
-    if (activeButtons['F'] && activeButtons['R']) {
-      enviarValorP(url, 'I'); // enviar I
-    } else if (activeButtons['F'] && activeButtons['L']) {
-      enviarValorP(url, 'G'); // enviar I
-    } else if (activeButtons['B'] && activeButtons['R']) {
-      enviarValorP(url, 'J'); // enviar I
-    } else if (activeButtons['B'] && activeButtons['L']) {
-      enviarValorP(url, 'H'); // enviar I
+  fetch(ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body
+  })
+  .then(resp => resp.text().then(t => ({ ok: resp.ok, status: resp.status, text: t })))
+  .then(result => {
+    if(result.ok){
+      status.textContent = `Enviado: r=${r} g=${g} b=${b} — respuesta: ${result.text}`;
     } else {
-      if (tipo === 'F' || tipo === 'B') {
-        const elapsed = (Date.now() - startTimes[tipo]) / 1000;
-        let n = Math.min(9, Math.floor(elapsed / 0.5) + 1);
-        enviarValorP(url, tipo + n);
-      } else {
-        enviarValorP(url, tipo);
-      }
+      status.textContent = `Error ${result.status}: ${result.text}`;
     }
-  }, 200);
+  })
+  .catch(err => {
+    console.error('Error al enviar:', err);
+    status.textContent = 'Error de red al enviar color';
+  });
 }
 
-function stopMove(url, tipo){
-  activeButtons[tipo] = false;   // <-- nuevo
-
-  if (intervals[tipo]) {
-    clearInterval(intervals[tipo]);
-    delete intervals[tipo];
-  }
-
-  if (tipo === 'F' || tipo === 'B') {
-    enviarValorP(url, tipo + 'S0');
-  }
+// Actualiza UI y programa envío
+function handleColorChange(e){
+  const hex = e.target.value;
+  const { r, g, b } = hexTo1023(hex);
+  valR.textContent = r;
+  valG.textContent = g;
+  valB.textContent = b;
+  debounceSend(r,g,b);
 }
 
-//asociacionluzF
-document.getElementById('luzOn').addEventListener('click', () => {
-	enviarValorP('/luz', 1);
+// Inicializa valores al cargar
+(function init(){
+  const initial = colorPicker.value || '#ffffff';
+  const { r,g,b } = hexTo1023(initial);
+  valR.textContent = r; valG.textContent = g; valB.textContent = b;
+  // Enviar inicial opcional: comentar si no quieres envío automático al cargar
+  // sendRGB(r,g,b);
+})();
+
+colorPicker.addEventListener('input', handleColorChange);
+
+// botones
+document.getElementById('btnLamPOn').addEventListener('click', ()=> {
+  enviarValorP('/encendido', "lamP", 1);
+});
+document.getElementById('btnLamSOn').addEventListener('click', ()=> {
+  enviarValorP('/encendido', "lamS", 1);
+});
+document.getElementById('btnRGBOn').addEventListener('click', ()=> {
+  // ejemplo: encender RGB al máximo
+  sendRGB(PWM_MAX, PWM_MAX, PWM_MAX);
 });
 
-document.getElementById('luzOff').addEventListener('click', () => {
-	enviarValorP('/luz', 0);
+// Ejemplo: botones de la pestaña 1 (envían comandos simples)
+document.getElementById('btnLamPOff').addEventListener('click', ()=> {
+  enviarValorP('/encendido', "lamP", 0);
 });
-
-//asociacionBuzF
-document.getElementById('buzOn').addEventListener('click', () => {
-	enviarValorP('/buz', 1);
+document.getElementById('btnLamSOff').addEventListener('click', ()=> {
+  enviarValorP('/encendido', "lamS", 0);
 });
-
-document.getElementById('buzOff').addEventListener('click', () => {
-	enviarValorP('/buz', 0);
+document.getElementById('btnRGBOff').addEventListener('click', ()=> {
+  // ejemplo: encender RGB al máximo
+  sendRGB(0, 0, 0);
 });
-
-// asociar botones
-frenteBtn.addEventListener('mousedown', () => startMove('/mov','F'));
-frenteBtn.addEventListener('mouseup', () => stopMove('/mov','F'));
-frenteBtn.addEventListener('touchstart', e => { e.preventDefault(); startMove('/mov','F'); });
-frenteBtn.addEventListener('touchend', () => stopMove('/mov','F'));
-
-atrasBtn.addEventListener('mousedown', () => startMove('/mov','B'));
-atrasBtn.addEventListener('mouseup', () => stopMove('/mov','B'));
-atrasBtn.addEventListener('touchstart', e => { e.preventDefault(); startMove('/mov','B'); });
-atrasBtn.addEventListener('touchend', () => stopMove('/mov','B'));
-
-derechaBtn.addEventListener('mousedown', () => startMove('/mov','R'));
-derechaBtn.addEventListener('mouseup', () => stopMove('/mov','R'));
-derechaBtn.addEventListener('touchstart', e => { e.preventDefault(); startMove('/mov','R'); });
-derechaBtn.addEventListener('touchend', () => stopMove('/mov','R'));
-
-izquierdaBtn.addEventListener('mousedown', () => startMove('/mov','L'));
-izquierdaBtn.addEventListener('mouseup', () => stopMove('/mov','L'));
-izquierdaBtn.addEventListener('touchstart', e => { e.preventDefault(); startMove('/mov','L'); });
-izquierdaBtn.addEventListener('touchend', () => stopMove('/mov','L'));

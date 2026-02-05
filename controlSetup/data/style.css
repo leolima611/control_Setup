@@ -1,34 +1,4 @@
-body {
-  font-family: sans-serif;
-  text-align: center;
-  background-color: #f2f2f2;
-}
-
-input[type="range"] {
-  width: 60%;
-  margin: 20px;
-	touch-action: none;
-}
-
-#slider{
-  writing-mode: vertical-lr;
-  direction: rtl;
-  height: 200px;
-  width: 8px;	
-  display: block;
-  margin: 20px auto;
-  -webkit-appearance: none;
-  appearance: none;
-  background: #ddd;
-  border-radius: 4px;
-}
-#grade{
-	height: 8px;
-	width: 400px;
-	display: block;
-  	margin: 20px auto;
-	-webkit-appearance: none;
-	appearance: none;
-	background: #ddd;
-	border-radius: 4px;
-}
+/* styles.css - mínimo posible */
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+.form-control-color { width: 4.5rem; height: 3rem; padding: .25rem; }
+#rgbValues .badge { font-size: 0.95rem; padding: .5rem .6rem; }

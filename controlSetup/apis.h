@@ -3,8 +3,11 @@
 
 #include <Arduino.h> // para funciones Arduino pines etc.
 
-extern const int ledPin; // declaración del ino
-extern const int buzPin;
+extern const int lamPrin;
+extern const int lamSec;
+extern const int ilumR;
+extern const int ilumG;
+extern const int ilumB;
 
 void handleFileRequest(String path, String contentType);
 void handleBrightness();
