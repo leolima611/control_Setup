@@ -56,7 +56,7 @@ void setup() {
   pinMode(ilumB, OUTPUT);
   analogWrite(ilumB, 0);
 
-  startApiServer();
+  statusSistem();
 
   // Conexión WiFi
   WiFi.begin(ssid, password);

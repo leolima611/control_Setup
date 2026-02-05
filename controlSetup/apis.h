@@ -10,9 +10,8 @@ extern const int ilumG;
 extern const int ilumB;
 
 void handleFileRequest(String path, String contentType);
-void handleBrightness();
-void handleBuzzer();
-void handleMov();
+void endenderLuces();
+void handleRGB();
 void startApiServer();
 void handleApiServer();
 

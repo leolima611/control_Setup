@@ -67,6 +67,11 @@ void handleRGB(){
     Serial.println("r: "+String(r)+" g: "+String(g)+" b: "+String(b));
 
     String msg = String("estado actual: r: ") + String(r) + " g: " + String(g) + " b: " + String(b);
+
+    analogWrite(ilumR, r);
+    analogWrite(ilumG, g);
+    analogWrite(ilumB, b);
+    
     apiServer.send(201, "text/plain", msg);
 
   } else {
